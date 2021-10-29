@@ -1,0 +1,50 @@
+Description: "Authentication Lambda functions for an AWS API gateway"
+Parameters:
+  ProductionStage:
+    Description: Set application stage to dev, test or prod
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  ApplicationName:
+    Description: Name of the application. Should be unique in AWS environment
+    Type: String
+
+Resources:
+    CognitoPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${ApplicationName}-cognito-${ProductionStage}
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          -
+            Name: verified_email
+            Priority: 1
+      UsernameConfiguration:
+        CaseSensitive: False
+      UsernameAttributes:
+        - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: False
+  
+  CognitoPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${ApplicationName}-cognito-${ProductionStage}
+      ExplicitAuthFlows:
+        - ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: true
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: "hours"
+        IdToken: "hours"
+        RefreshToken: "hours"
+      UserPoolId: !Ref CognitoPool
+
+Outputs:

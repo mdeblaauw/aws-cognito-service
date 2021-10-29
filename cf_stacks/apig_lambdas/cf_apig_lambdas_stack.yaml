@@ -1,0 +1,58 @@
+Description: "Authentication Lambda functions for an AWS API gateway"
+Parameters:
+  ProductionStage:
+    Description: Set application stage to dev, test or prod
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  ApplicationName:
+    Description: Name of the application. Should be unique in AWS environment
+    Type: String
+
+Resources:
+  SignUpLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: ../../lambda_functions/signup/
+      FunctionName: !Sub ${ApplicationName}-signup-${ProductionStage}
+      Handler: signup.handler.lambda_handler
+      Role: !GetAtt SignUpLambdaRole.Arn
+      Runtime: python3.9
+      Timeout: 10
+      Environment: 
+        Variables:
+          secret_name: dummy
+          client_id: dummy
+  
+  SignUpLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        -
+          PolicyName: !Sub ${ApplicationName}-SignUpLambdaPolicy-${ProductionStage}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+Outputs:
+  SignUpLambdaArn:
+    Value: !GetAtt SignUpLambda.Arn
+    Description: Lambda that signs-up users to Cognito

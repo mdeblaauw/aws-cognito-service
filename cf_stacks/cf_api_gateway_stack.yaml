@@ -1,0 +1,63 @@
+Description: "Authentication AWS API Gateway"
+Parameters:
+  ProductionStage:
+    Description: Set application stage to dev, test or prod
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  ApplicationName:
+    Description: Name of the application. Should be unique in AWS environment
+    Type: String
+
+Resources:
+  ApiLambdas:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./apig_lambdas/cf_apig_lambdas_stack.yaml
+      Parameters:
+        ProductionStage: !Sub ${ProductionStage}
+        ApplicationName: !Sub ${ApplicationName}
+
+  AuthHtppApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: AuthHTTPApi
+      Description: Cognito authentication api
+      ProtocolType: HTTP
+  
+  SingUpRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AuthHtppApi
+      RouteKey: 'POST /api/signup'
+      Target: !Join
+        - /
+        - - integrations
+          - !Ref SignUpIntegration
+  
+  SignUpIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref AuthHtppApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiLambdas.Outputs.SignUpLambdaArn}/invocations
+      IntegrationMethod: POST
+      PayloadFormatVersion: '2.0'
+
+  AuthHttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref AuthHtppApi
+      AutoDeploy: true
+      StageName: !Sub ${ProductionStage}
+
+  SignUpLambdaApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      FunctionName: !GetAtt ApiLambdas.Outputs.SignUpLambdaArn
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AuthHtppApi}/*

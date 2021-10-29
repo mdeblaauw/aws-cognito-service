@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Lambda_layer deployment folder
+lambda_layer/
+
+# Cloudformation packaged stacks
+cf_stacks/*.packaged.yaml
