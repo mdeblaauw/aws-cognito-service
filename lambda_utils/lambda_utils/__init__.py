@@ -1,6 +1,6 @@
-from .secret_hash import test
+from .secret_hash import secret_cognito_hash
 
 
 __all__ = [
-    'test'
+    'secret_cognito_hash'
 ]

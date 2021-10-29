@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 
 VERSION = '0.0.1'
-DESCRIPTION = 'Lambda layers for authentication'
-LONG_DESCRIPTION = 'Lambda layers for authentication'
+DESCRIPTION = 'Lambda layer for authentication'
+LONG_DESCRIPTION = 'Lambda layer for authentication'
 
 setup(
-    name='authUtils',
+    name='lambda_utils',
     version=VERSION,
     author='Mark de Blaauw',
     author_email='mdeblaauw@mobiquity.com',
