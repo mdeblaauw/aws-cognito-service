@@ -1,0 +1,28 @@
+Description: "Create a standard S3 bucket which can be used to upload cf stacks"
+Parameters:
+  ProductionStage:
+    Description: Set application stage to dev, test or prod
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  ApplicationName:
+    Description: Name of the application. Should be unique in AWS environment
+    Type: String
+
+Resources:
+  CFNResponseLambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+      Content: ../lambda_layer/cfn_utils/
+
+Outputs:
+  CFNResponseLambdaLayerName:
+    Description: CFNResponse lambda layer
+    Value: !Ref CFNResponseLambdaLayer
+    Export:
+      Name: !Sub ${ApplicationName}-cfnresponse-lambda-${ProductionStage}

@@ -1,4 +1,5 @@
 import os
+import json
 import re
 import boto3
 import botocore.exceptions
@@ -99,7 +100,7 @@ def signup(username: str, password: str) -> dict:
 
     # Retrieve the Cognito secret for hash secret
     try:
-        cognito_secret = secret_client.get_secret_value(
+        cognito_secret_string = secret_client.get_secret_value(
             SecretId=os.environ['secret_name'],
         )['SecretString']
     except Exception as e:
@@ -109,13 +110,15 @@ def signup(username: str, password: str) -> dict:
             "message": "An internal error has occurered"
         }
 
+    cognito_secret = json.loads(cognito_secret_string)
+
     try:
         response = cognito_client.sign_up(
             ClientId=os.environ['client_id'],
             SecretHash=secret_cognito_hash(
                 username=username,
                 cognito_client_id=os.environ['client_id'],
-                cognito_secret=cognito_secret
+                cognito_secret=cognito_secret['clientSecret']
             ),
             Username=username,
             Password=password,

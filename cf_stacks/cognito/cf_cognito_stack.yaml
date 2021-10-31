@@ -1,4 +1,4 @@
-Description: "Authentication Lambda functions for an AWS API gateway"
+Description: "Creates a Cognito pool and app client"
 Parameters:
   ProductionStage:
     Description: Set application stage to dev, test or prod
@@ -11,9 +11,69 @@ Parameters:
   ApplicationName:
     Description: Name of the application. Should be unique in AWS environment
     Type: String
+  CFNResponseLambdaLayer:
+    Description: Ref of CFN response lambda layer
+    Type: String
 
 Resources:
-    CognitoPool:
+  UserPoolClientSecret:
+    Type: Custom::UserPoolClientSecret
+    Properties:
+      ServiceToken: !GetAtt CognitoSecretLambda.Arn
+      UserPoolId: !Ref CognitoPool
+      AppClientId: !Ref CognitoPoolClient
+
+  CognitoSecretLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: ../../lambda_functions/cf_cognito_secret/
+      FunctionName: !Sub ${ApplicationName}-cognito-secret-${ProductionStage}
+      Handler: cf_cognito_secret.handler.lambda_handler
+      Runtime: python3.9
+      Timeout: 10
+      Role: !GetAtt CognitoSecretLambdaRole.Arn
+      Layers:
+        - !Sub ${CFNResponseLambdaLayer}
+  
+  CognitoSecretLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        -
+          PolicyName: !Sub ${ApplicationName}-cognito-secret-policy-${ProductionStage}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - cognito-idp:DescribeUserPoolClient
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:TagResource
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:DeleteSecret
+                Resource: "*"
+
+  CognitoPool:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub ${ApplicationName}-cognito-${ProductionStage}
@@ -34,7 +94,7 @@ Resources:
     Properties:
       ClientName: !Sub ${ApplicationName}-cognito-${ProductionStage}
       ExplicitAuthFlows:
-        - ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
       GenerateSecret: true
       PreventUserExistenceErrors: ENABLED
@@ -48,3 +108,14 @@ Resources:
       UserPoolId: !Ref CognitoPool
 
 Outputs:
+  UserPoolClientSecretName:
+    Description: The Cognito app client secret
+    Value: !GetAtt UserPoolClientSecret.SecretName
+
+  UserPoolClientId:
+    Description: The Cognito app client Id
+    Value: !Ref CognitoPoolClient
+  
+  UserPoolId:
+    Description: The Congito app Id
+    Value: !Ref CognitoPool

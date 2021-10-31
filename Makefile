@@ -13,3 +13,9 @@ coverage:
 	coverage combine lambda_functions/.coverage lambda_utils/.coverage
 	coverage html --skip-covered
 	open htmlcov/index.html
+
+deploy_dev:
+
+deploy_test:
+
+deploy_prod:

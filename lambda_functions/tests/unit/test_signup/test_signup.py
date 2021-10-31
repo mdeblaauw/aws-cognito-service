@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 import boto3
 from unittest.mock import patch
@@ -48,12 +49,18 @@ class TestSignup(unittest.TestCase):
         )
 
         self.client_id = pool_client['UserPoolClient']['ClientId']
-        client_secret = pool_client['UserPoolClient']['ClientSecret']
+        secret_string = json.dumps(
+            {
+                'userPoolId': user_pool_id,
+                'clientId': self.client_id,
+                'clientSecret': pool_client['UserPoolClient']['ClientSecret']
+            }
+        )
         self.secret_name = 'signup_testing'
 
         secret_client.create_secret(
             Name=self.secret_name,
-            SecretString=client_secret
+            SecretString=secret_string
         )
 
     def tearDown(self):

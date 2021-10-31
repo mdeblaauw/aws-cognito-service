@@ -12,7 +12,41 @@ Parameters:
     Description: Name of the application. Should be unique in AWS environment
     Type: String
 
+Transform: AWS::Serverless-2016-10-31
+
 Resources:
+  AwsLambdaPowertoolsPythonLayer:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:eu-west-1:057560766410:applications/aws-lambda-powertools-python-layer-extras
+        # Find latest from github.com/awslabs/aws-lambda-powertools-python/releases
+        SemanticVersion: 1.21.1
+
+  CFNUtilityStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ../cf_utilities_stack.yaml
+      Parameters:
+        ProductionStage: !Sub ${ProductionStage}
+        ApplicationName: !Sub ${ApplicationName}
+
+  CognitoStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ../cognito/cf_cognito_stack.yaml
+      Parameters:
+        ProductionStage: !Sub ${ProductionStage}
+        ApplicationName: !Sub ${ApplicationName}
+        CFNResponseLambdaLayer: !GetAtt CFNUtilityStack.Outputs.CFNResponseLambdaLayerName
+
+  LambdaUtilsLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+      Content: ../../lambda_layer/auth_utils/
+
   SignUpLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -22,10 +56,13 @@ Resources:
       Role: !GetAtt SignUpLambdaRole.Arn
       Runtime: python3.9
       Timeout: 10
-      Environment: 
+      Layers:
+        - !Ref LambdaUtilsLayer
+        - !GetAtt AwsLambdaPowertoolsPythonLayer.Outputs.LayerVersionArn
+      Environment:
         Variables:
-          secret_name: dummy
-          client_id: dummy
+          secret_name: !GetAtt CognitoStack.Outputs.UserPoolClientSecretName
+          client_id: !GetAtt CognitoStack.Outputs.UserPoolClientId
   
   SignUpLambdaRole:
     Type: AWS::IAM::Role
@@ -51,6 +88,16 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+              -
+                Effect: Allow
+                Action:
+                  - cognito-idp:SignUp
+                Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoStack.Outputs.UserPoolId}
 
 Outputs:
   SignUpLambdaArn:

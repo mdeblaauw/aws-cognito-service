@@ -8,7 +8,17 @@ from random import randint
 def lambda_handler(
     event: dict,
     context: dict
-) -> dict:
+) -> None:
+    """Lambda handler that puts a secret of
+    an AWS Cognito user pool into AWS Secret Manager.
+
+    Args:
+        event (dict): The event information.
+        context (dict): The enviornment information.
+
+    Returns:
+        None:
+    """
     cognito_client = boto3.client('cognito-idp')
     secret_manager_client = boto3.client('secretsmanager')
 
@@ -62,7 +72,6 @@ def lambda_handler(
                 UserPoolId=userPoolId,
                 ClientId=appClientId
             )
-            print(event)
 
             update_secret(
                 payload={
@@ -70,10 +79,8 @@ def lambda_handler(
                     'clientId': appClientId,
                     'clientSecret': response['ClientSecret']
                 },
-                secret_name='dummy',
+                secret_name=event['PhysicalResourceId'],
                 stack_name=stack_name,
-                event=event,
-                context=context,
                 secret_client=secret_manager_client
             )
         except Exception as e:
@@ -86,6 +93,7 @@ def lambda_handler(
                     'Data': str(e)
                 }
             )
+            return None
         response_data = {
             'SecretArn': response['ARN'],
             'SecretName': response['Name'],
@@ -94,7 +102,7 @@ def lambda_handler(
     elif event.get('RequestType', None) == 'Delete':
         try:
             response = delete_secret(
-                secret_name='dummy',
+                secret_name=event['PhysicalResourceId'],
                 secret_client=secret_manager_client
             )
         except Exception as e:
@@ -107,6 +115,7 @@ def lambda_handler(
                     'Data': str(e)
                 }
             )
+            return None
         response_data = {
             'SecretArn': response['ARN'],
             'SecretName': response['Name']
@@ -125,7 +134,8 @@ def lambda_handler(
         event=event,
         context=context,
         responseStatus=cfnresponse.SUCCESS,
-        responseData=response_data
+        responseData=response_data,
+        physicalResourceId=response_data['SecretName']
     )
 
 
